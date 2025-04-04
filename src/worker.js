@@ -1,11 +1,20 @@
 addEventListener('fetch', (event) => {
   event.respondWith(handleRequest(event.request));
- });
- 
- async function handleRequest(request) {
+});
+
+// ✅ Notion-Version を補完する共通関数
+function buildHeadersWithNotionVersion(baseHeaders) {
+  const headers = new Headers(baseHeaders);
+  if (!headers.has('Notion-Version')) {
+    headers.set('Notion-Version', '2022-06-28');
+  }
+  return headers;
+}
+
+async function handleRequest(request) {
   try {
     const url = new URL(request.url);
- 
+
     if (url.pathname.startsWith('/redirect/')) {
       let targetUrl = url.pathname.slice(10);
       if (url.search) {
@@ -13,14 +22,14 @@ addEventListener('fetch', (event) => {
       }
       return Response.redirect(targetUrl, 302);
     }
- 
+
     if (url.pathname === '/') {
       return new Response(`
         Usage:\n
           ${url.origin}/<url>
       `);
     }
- 
+
     if (request.method === 'OPTIONS') {
       return new Response(null, {
         status: 200,
@@ -31,8 +40,8 @@ addEventListener('fetch', (event) => {
         },
       });
     }
- 
-    // 特別な処理: /v1/pages への POST リクエスト
+
+    // ✅ 特別処理: /v1/pages POST（propertiesString展開）
     if (request.method === 'POST' && url.pathname.endsWith('/v1/pages')) {
       let requestData;
       try {
@@ -43,30 +52,25 @@ addEventListener('fetch', (event) => {
           headers: { 'Content-Type': 'application/json' }
         });
       }
- 
-      // propertiesString があれば処理
+
       if (requestData.propertiesString) {
         try {
-          // 文字列からJSONオブジェクトにパース
           const properties = JSON.parse(requestData.propertiesString);
-          
-          // 元のリクエストから新しいリクエストを構築
           const newRequestData = {
             ...requestData,
-            properties: properties
+            properties
           };
-          
-          // propertiesString は削除
           delete newRequestData.propertiesString;
-          
-          // 新しいリクエストを作成
+
+          // ✅ ヘッダーを Notion-Version 補完付きで再構築
+          const headers = buildHeadersWithNotionVersion(request.headers);
+
           const newRequest = new Request(request.url.slice(url.origin.length + 1), {
             method: 'POST',
-            headers: request.headers,
+            headers,
             body: JSON.stringify(newRequestData)
           });
-          
-          // 以降は通常の処理と同様
+
           return await fetch(newRequest);
         } catch (e) {
           return new Response(JSON.stringify({ error: 'Invalid propertiesString', details: e.message }), {
@@ -76,27 +80,26 @@ addEventListener('fetch', (event) => {
         }
       }
     }
- 
-    const headers = new Headers(request.headers);
- 
-    if ('api.notion.com' === new URL(request.url.slice(url.origin.length + 1)).hostname && !headers.has('Notion-Version')) {
-      const notionVersion = '2022-06-28';
-      headers.set('Notion-Version', notionVersion);
-    }
- 
-    let response = await fetch(request.url.slice(url.origin.length + 1), {
+
+    // ✅ 通常のリクエスト（GET/POST）に対してもヘッダー補完
+    const headers = buildHeadersWithNotionVersion(request.headers);
+
+    const targetUrl = request.url.slice(url.origin.length + 1);
+    let response = await fetch(targetUrl, {
       method: request.method,
-      headers: headers,
+      headers,
       redirect: 'follow',
       body: request.body,
     });
+
+    // ✅ CORS ヘッダー設定
     response = new Response(response.body, response);
     response.headers.set('Access-Control-Allow-Origin', '*');
     response.headers.set('Access-Control-Allow-Methods', 'GET, HEAD, POST, OPTIONS');
     response.headers.set('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Accept, Authorization, Content-Type, Notion-Version');
- 
+
     return response;
   } catch (e) {
-    return new Response(e.stack || e, { status: 500 });
+    return new Response(e.stack || e.toString(), { status: 500 });
   }
- }
+}
