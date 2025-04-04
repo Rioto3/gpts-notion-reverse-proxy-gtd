@@ -1,5 +1,5 @@
 {
-  "name": "your-worker-name",
+  "name": "gpts-notion-reverse-proxy",
   "compatibility_date": "2025-04-04",
   "main": "src/worker.js"
 }
