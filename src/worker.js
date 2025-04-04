@@ -86,7 +86,7 @@ async function handleRequest(request) {
    const headers = new Headers(request.headers);
 
    if ('api.notion.com' === new URL(request.url.slice(url.origin.length + 1)).hostname && !headers.has('Notion-Version')) {
-     const notionVersion = '2021-05-13';
+     const notionVersion = '2022-06-28';
      headers.set('Notion-Version', notionVersion);
    }
 
