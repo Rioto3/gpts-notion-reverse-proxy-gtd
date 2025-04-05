@@ -10,6 +10,10 @@ function buildHeadersWithNotionVersion(baseHeaders) {
   return headers;
 }
 
+
+
+
+
 async function handleRequest(request) {
   try {
     const url = new URL(request.url);
@@ -35,10 +39,20 @@ async function handleRequest(request) {
         try {
           const parsedData = JSON.parse(requestData.propertiesAndChildrenString);
           
+          // プロパティが確実に存在することを確認
+          if (!parsedData.properties) {
+            return new Response(JSON.stringify({ 
+              error: 'Properties are required' 
+            }), {
+              status: 400,
+              headers: { 'Content-Type': 'application/json' }
+            });
+          }
+
           const newRequestData = {
             parent: requestData.parent,
             properties: parsedData.properties,
-            children: parsedData.children
+            children: parsedData.children || []
           };
 
           // ヘッダーを Notion-Version 補完付きで再構築
@@ -48,7 +62,7 @@ async function handleRequest(request) {
             ...Object.fromEntries(request.headers)
           });
 
-          // 新しいリクエストを作成（クローンではなく新規作成）
+          // 新しいリクエストを作成
           const newRequest = new Request('https://api.notion.com/v1/pages', {
             method: 'POST',
             headers: headers,
@@ -74,24 +88,6 @@ async function handleRequest(request) {
         body: JSON.stringify(requestData)
       });
     }
-
-    // 通常のリクエスト処理
-    const headers = buildHeadersWithNotionVersion(request.headers);
-    const targetUrl = request.url.slice(url.origin.length + 1);
-    let response = await fetch(targetUrl, {
-      method: request.method,
-      headers,
-      redirect: 'follow',
-      body: request.body,
-    });
-
-    // CORS ヘッダー設定
-    response = new Response(response.body, response);
-    response.headers.set('Access-Control-Allow-Origin', '*');
-    response.headers.set('Access-Control-Allow-Methods', 'GET, HEAD, POST, OPTIONS');
-    response.headers.set('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Accept, Authorization, Content-Type, Notion-Version');
-    
-    return response;
   } catch (e) {
     return new Response(e.stack || e.toString(), { status: 500 });
   }
