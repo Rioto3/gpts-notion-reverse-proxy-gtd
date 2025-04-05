@@ -224,8 +224,8 @@ paths:
                 parent:
                   type: database_id
                   database_id: database_id_here
-                propertiesString: '{"Name":{"title":[{"text":{"content":"新しいInboxタスク"}}]},"children":[{"object":"block","type":"heading_2","heading_2":{"rich_text":[{"text":{"content":"タスクの詳細"}}]}},{"object":"block","type":"paragraph","paragraph":{"rich_text":[{"type":"text","text":{"content":"ここに本文を入力します。これは一般的な段落です。","link":null}}]}}]}'
-      responses:
+                propertiesAndChildrenString: '{"properties":{"Name":{"title":[{"text":{"content":"新しいInboxタスク"}}]}},"children":[{"object":"block","type":"heading_2","heading_2":{"rich_text":[{"text":{"content":"タスクの詳細"}}]}},{"object":"block","type":"paragraph","paragraph":{"rich_text":[{"type":"text","text":{"content":"ここに本文を入力します。これは一般的な段落です。","link":null}}]}}]}'
+                
         "200":
           description: Successful response
           content:
@@ -288,7 +288,7 @@ paths:
                   type: boolean
                   description: Whether the page is archived
               example:
-                propertiesString: '{"Name":{"title":[{"text":{"content":"新しいInboxタスク"}}]},"children":[{"object":"block","type":"heading_2","heading_2":{"rich_text":[{"text":{"content":"タスクの詳細"}}]}},{"object":"block","type":"paragraph","paragraph":{"rich_text":[{"type":"text","text":{"content":"ここに本文を入力します。これは一般的な段落です。","link":null}}]}}]}'
+                propertiesAndChildrenString: '{"properties":{"Name":{"title":[{"text":{"content":"新しいInboxタスク"}}]}},"children":[{"object":"block","type":"heading_2","heading_2":{"rich_text":[{"text":{"content":"タスクの詳細"}}]}},{"object":"block","type":"paragraph","paragraph":{"rich_text":[{"type":"text","text":{"content":"ここに本文を入力します。これは一般的な段落です。","link":null}}]}}]}'
       responses:
         "200":
           description: Successful response
