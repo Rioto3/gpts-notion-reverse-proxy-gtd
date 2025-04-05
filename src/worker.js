@@ -27,15 +27,8 @@ async function handleRequest(request) {
 
     // Notion Pages APIへのPOSTリクエスト専用の処理
     if (request.method === 'POST' && url.pathname.endsWith('/v1/pages')) {
-      let requestData;
-      try {
-        requestData = await request.json();
-      } catch (e) {
-        return new Response(JSON.stringify({ error: 'Invalid JSON' }), {
-          status: 400,
-          headers: { 'Content-Type': 'application/json' }
-        });
-      }
+      // リクエストボディを一度だけ読み取る
+      const requestData = await request.json();
 
       // propertiesAndChildrenStringの処理
       if (requestData.propertiesAndChildrenString) {
@@ -43,27 +36,43 @@ async function handleRequest(request) {
           const parsedData = JSON.parse(requestData.propertiesAndChildrenString);
           
           const newRequestData = {
-            ...requestData,
+            parent: requestData.parent,
             properties: parsedData.properties,
             children: parsedData.children
           };
 
           // ヘッダーを Notion-Version 補完付きで再構築
-          const headers = buildHeadersWithNotionVersion(request.headers);
-          const newRequest = new Request(request.url.slice(url.origin.length + 1), {
+          const headers = new Headers({
+            'Content-Type': 'application/json',
+            'Notion-Version': '2022-06-28',
+            ...Object.fromEntries(request.headers)
+          });
+
+          // 新しいリクエストを作成（クローンではなく新規作成）
+          const newRequest = new Request('https://api.notion.com/v1/pages', {
             method: 'POST',
-            headers,
+            headers: headers,
             body: JSON.stringify(newRequestData)
           });
           
           return await fetch(newRequest);
         } catch (e) {
-          return new Response(JSON.stringify({ error: 'Invalid propertiesAndChildrenString', details: e.message }), {
+          return new Response(JSON.stringify({ 
+            error: 'Invalid propertiesAndChildrenString', 
+            details: e.message 
+          }), {
             status: 400,
             headers: { 'Content-Type': 'application/json' }
           });
         }
       }
+      
+      // propertiesAndChildrenStringがない場合の処理
+      return await fetch('https://api.notion.com/v1/pages', {
+        method: 'POST',
+        headers: buildHeadersWithNotionVersion(request.headers),
+        body: JSON.stringify(requestData)
+      });
     }
 
     // 通常のリクエスト処理
