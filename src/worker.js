@@ -14,7 +14,6 @@ function buildHeadersWithNotionVersion(baseHeaders) {
 async function handleRequest(request) {
   try {
     const url = new URL(request.url);
-    const targetUrl = new URL(url.pathname, 'https://api.notion.com');
     
     // CORSプリフライトリクエストの処理
     if (request.method === 'OPTIONS') {
@@ -27,13 +26,30 @@ async function handleRequest(request) {
         },
       });
     }
+
+    // パスの取得（/https://api.notion.com/... のようなURLからNotionのパスだけを抽出）
+    let notionPath = url.pathname;
+    const match = notionPath.match(/\/https:\/\/api\.notion\.com(\/.*)/);
+    if (match) {
+      notionPath = match[1];
+    } else if (notionPath.startsWith('/http')) {
+      // URLが二重にエンコードされている可能性がある場合の処理
+      const decodedPath = decodeURIComponent(notionPath);
+      const matchDecoded = decodedPath.match(/\/https:\/\/api\.notion\.com(\/.*)/);
+      if (matchDecoded) {
+        notionPath = matchDecoded[1];
+      }
+    }
+
+    // Notion APIのベースURL
+    const targetUrl = new URL(notionPath, 'https://api.notion.com');
     
     // URLにクエリパラメータを追加
     if (url.search) {
       targetUrl.search = url.search;
     }
     
-    // PATCH, GET, POSTリクエストの共通処理
+    // リクエストの処理
     if (['GET', 'POST', 'PATCH'].includes(request.method)) {
       let requestBody;
       let headers = buildHeadersWithNotionVersion(request.headers);
@@ -41,10 +57,10 @@ async function handleRequest(request) {
       // POSTとPATCHリクエストのボディを処理
       if (['POST', 'PATCH'].includes(request.method)) {
         try {
-          const requestData = await request.json();
+          const requestData = await request.clone().json();
           
-          // propertiesAndChildrenStringの処理（pagesエンドポイント用）
-          if ((url.pathname.endsWith('/v1/pages') || url.pathname.match(/\/v1\/pages\/[^\/]+$/)) && 
+          // propertiesAndChildrenStringの処理
+          if ((notionPath.endsWith('/v1/pages') || notionPath.match(/\/v1\/pages\/[^\/]+$/)) && 
               requestData.propertiesAndChildrenString) {
             try {
               const parsedData = JSON.parse(requestData.propertiesAndChildrenString);
@@ -68,19 +84,17 @@ async function handleRequest(request) {
               });
             }
           } else {
-            // 標準的なリクエスト
+            // リクエストボディをそのまま使用
             requestBody = JSON.stringify(requestData);
           }
         } catch (e) {
-          return new Response(JSON.stringify({ 
-            error: 'Invalid request body', 
-            details: e.message 
-          }), {
-            status: 400,
-            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-          });
+          // JSONパースエラーの場合は、リクエストボディをそのまま使用
+          const rawBody = await request.text();
+          requestBody = rawBody;
         }
       }
+      
+      console.log(`Forwarding request to: ${targetUrl.toString()}`);
       
       // 新しいリクエストオプションを作成
       const requestOptions = {
@@ -102,12 +116,36 @@ async function handleRequest(request) {
       // レスポンスボディを取得
       const responseBody = await response.text();
       
-      // 新しいレスポンスを構築
-      return new Response(responseBody, {
-        status: response.status,
-        statusText: response.statusText,
-        headers: responseHeaders
-      });
+      // デバッグ情報をレスポンスに含める
+      let debugInfo = {};
+      if (responseBody.includes('invalid_request_url')) {
+        debugInfo = {
+          debug: {
+            original_url: request.url,
+            processed_url: targetUrl.toString(),
+            notion_path: notionPath
+          }
+        };
+      }
+      
+      try {
+        // JSONレスポンスの場合はデバッグ情報を追加
+        const jsonResponse = JSON.parse(responseBody);
+        const enhancedResponse = { ...jsonResponse, ...debugInfo };
+        
+        return new Response(JSON.stringify(enhancedResponse), {
+          status: response.status,
+          statusText: response.statusText,
+          headers: responseHeaders
+        });
+      } catch (e) {
+        // JSONでない場合はそのまま返す
+        return new Response(responseBody, {
+          status: response.status,
+          statusText: response.statusText,
+          headers: responseHeaders
+        });
+      }
     }
     
     // サポートされていないHTTPメソッド
@@ -117,7 +155,10 @@ async function handleRequest(request) {
     });
     
   } catch (e) {
-    return new Response(JSON.stringify({ error: e.message || 'Internal server error' }), {
+    return new Response(JSON.stringify({ 
+      error: e.message || 'Internal server error',
+      stack: e.stack
+    }), {
       status: 500,
       headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
     });
