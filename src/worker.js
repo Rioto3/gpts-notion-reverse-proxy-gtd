@@ -2,6 +2,7 @@ addEventListener('fetch', (event) => {
   event.respondWith(handleRequest(event.request));
 });
 
+// Notion APIバージョンを含むヘッダーを構築する関数
 function buildHeadersWithNotionVersion(baseHeaders) {
   const headers = new Headers(baseHeaders);
   if (!headers.has('Notion-Version')) {
@@ -10,85 +11,115 @@ function buildHeadersWithNotionVersion(baseHeaders) {
   return headers;
 }
 
-
-
-
-
 async function handleRequest(request) {
   try {
     const url = new URL(request.url);
+    const targetUrl = new URL(url.pathname, 'https://api.notion.com');
     
+    // CORSプリフライトリクエストの処理
     if (request.method === 'OPTIONS') {
       return new Response(null, {
         status: 200,
         headers: {
           'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Methods': 'GET, HEAD, POST, OPTIONS',
+          'Access-Control-Allow-Methods': 'GET, POST, PATCH, HEAD, OPTIONS',
           'Access-Control-Allow-Headers': 'Authorization, Content-Type, Notion-Version',
         },
       });
     }
-
-    // Notion Pages APIへのPOSTリクエスト専用の処理
-    if (request.method === 'POST' && url.pathname.endsWith('/v1/pages')) {
-      // リクエストボディを一度だけ読み取る
-      const requestData = await request.json();
-
-      // propertiesAndChildrenStringの処理
-      if (requestData.propertiesAndChildrenString) {
+    
+    // URLにクエリパラメータを追加
+    if (url.search) {
+      targetUrl.search = url.search;
+    }
+    
+    // PATCH, GET, POSTリクエストの共通処理
+    if (['GET', 'POST', 'PATCH'].includes(request.method)) {
+      let requestBody;
+      let headers = buildHeadersWithNotionVersion(request.headers);
+      
+      // POSTとPATCHリクエストのボディを処理
+      if (['POST', 'PATCH'].includes(request.method)) {
         try {
-          const parsedData = JSON.parse(requestData.propertiesAndChildrenString);
+          const requestData = await request.json();
           
-          // プロパティが確実に存在することを確認
-          if (!parsedData.properties) {
-            return new Response(JSON.stringify({ 
-              error: 'Properties are required' 
-            }), {
-              status: 400,
-              headers: { 'Content-Type': 'application/json' }
-            });
+          // propertiesAndChildrenStringの処理（pagesエンドポイント用）
+          if ((url.pathname.endsWith('/v1/pages') || url.pathname.match(/\/v1\/pages\/[^\/]+$/)) && 
+              requestData.propertiesAndChildrenString) {
+            try {
+              const parsedData = JSON.parse(requestData.propertiesAndChildrenString);
+              
+              // 新しいリクエストデータを作成
+              const newRequestData = {
+                ...(requestData.parent && { parent: requestData.parent }),
+                ...(parsedData.properties && { properties: parsedData.properties }),
+                ...(parsedData.children && { children: parsedData.children }),
+                ...(requestData.archived !== undefined && { archived: requestData.archived })
+              };
+              
+              requestBody = JSON.stringify(newRequestData);
+            } catch (e) {
+              return new Response(JSON.stringify({ 
+                error: 'Invalid propertiesAndChildrenString', 
+                details: e.message 
+              }), {
+                status: 400,
+                headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+              });
+            }
+          } else {
+            // 標準的なリクエスト
+            requestBody = JSON.stringify(requestData);
           }
-
-          const newRequestData = {
-            parent: requestData.parent,
-            properties: parsedData.properties,
-            children: parsedData.children || []
-          };
-
-          // ヘッダーを Notion-Version 補完付きで再構築
-          const headers = new Headers({
-            'Content-Type': 'application/json',
-            'Notion-Version': '2022-06-28',
-            ...Object.fromEntries(request.headers)
-          });
-
-          // 新しいリクエストを作成
-          const newRequest = new Request('https://api.notion.com/v1/pages', {
-            method: 'POST',
-            headers: headers,
-            body: JSON.stringify(newRequestData)
-          });
-          
-          return await fetch(newRequest);
         } catch (e) {
           return new Response(JSON.stringify({ 
-            error: 'Invalid propertiesAndChildrenString', 
+            error: 'Invalid request body', 
             details: e.message 
           }), {
             status: 400,
-            headers: { 'Content-Type': 'application/json' }
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
           });
         }
       }
       
-      // propertiesAndChildrenStringがない場合の処理
-      return await fetch('https://api.notion.com/v1/pages', {
-        method: 'POST',
-        headers: buildHeadersWithNotionVersion(request.headers),
-        body: JSON.stringify(requestData)
+      // 新しいリクエストオプションを作成
+      const requestOptions = {
+        method: request.method,
+        headers: headers
+      };
+      
+      if (requestBody) {
+        requestOptions.body = requestBody;
+      }
+      
+      // Notionへリクエストを転送
+      const response = await fetch(targetUrl.toString(), requestOptions);
+      
+      // レスポンスヘッダーを複製
+      const responseHeaders = new Headers(response.headers);
+      responseHeaders.set('Access-Control-Allow-Origin', '*');
+      
+      // レスポンスボディを取得
+      const responseBody = await response.text();
+      
+      // 新しいレスポンスを構築
+      return new Response(responseBody, {
+        status: response.status,
+        statusText: response.statusText,
+        headers: responseHeaders
       });
     }
+    
+    // サポートされていないHTTPメソッド
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+      status: 405,
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+    });
+    
   } catch (e) {
-    return new Response(e.stack || e.toString(), { status: 500 });
+    return new Response(JSON.stringify({ error: e.message || 'Internal server error' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+    });
   }
 }

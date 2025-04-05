@@ -202,7 +202,7 @@ paths:
               type: object
               required:
                 - parent
-                - propertiesString
+                - propertiesAndChildrenString
               properties:
                 parent:
                   type: object
@@ -217,15 +217,15 @@ paths:
                       default: database_id
                     database_id:
                       type: string
-                propertiesString:
+                propertiesAndChildrenString:
                   type: string
-                  description: JSON string of properties to set
+                  description: JSON string containing properties and optional children blocks
               example:
                 parent:
                   type: database_id
                   database_id: database_id_here
                 propertiesAndChildrenString: '{"properties":{"Name":{"title":[{"text":{"content":"新しいInboxタスク"}}]}},"children":[{"object":"block","type":"heading_2","heading_2":{"rich_text":[{"text":{"content":"タスクの詳細"}}]}},{"object":"block","type":"paragraph","paragraph":{"rich_text":[{"type":"text","text":{"content":"ここに本文を入力します。これは一般的な段落です。","link":null}}]}}]}'
-                
+      responses:
         "200":
           description: Successful response
           content:
@@ -281,14 +281,14 @@ paths:
             schema:
               type: object
               properties:
-                propertiesString:
+                propertiesAndChildrenString:
                   type: string
-                  description: JSON string of properties to update
+                  description: JSON string containing properties to update and optional children blocks
                 archived:
                   type: boolean
                   description: Whether the page is archived
               example:
-                propertiesAndChildrenString: '{"properties":{"Name":{"title":[{"text":{"content":"新しいInboxタスク"}}]}},"children":[{"object":"block","type":"heading_2","heading_2":{"rich_text":[{"text":{"content":"タスクの詳細"}}]}},{"object":"block","type":"paragraph","paragraph":{"rich_text":[{"type":"text","text":{"content":"ここに本文を入力します。これは一般的な段落です。","link":null}}]}}]}'
+                propertiesAndChildrenString: '{"properties":{"Name":{"title":[{"text":{"content":"更新されたタスク"}}]}},"children":[{"object":"block","type":"heading_2","heading_2":{"rich_text":[{"text":{"content":"タスクの詳細"}}]}},{"object":"block","type":"paragraph","paragraph":{"rich_text":[{"type":"text","text":{"content":"ここに本文を入力します。これは一般的な段落です。","link":null}}]}}]}'
       responses:
         "200":
           description: Successful response
