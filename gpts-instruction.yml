@@ -324,6 +324,7 @@ paths:
         "500":
           description: Internal Server Error
     get:
+      x-openai-isConsequential: false
       description: Retrieve a page
       operationId: retrievePage
       tags:
