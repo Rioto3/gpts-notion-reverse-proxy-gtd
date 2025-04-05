@@ -57,9 +57,10 @@ async function handleRequest(request) {
         try {
           const properties = JSON.parse(requestData.propertiesString);
           const newRequestData = {
-            ...requestData,
-            properties
-          };
+              parent: requestData.parent,
+              properties,
+              ...(requestData.children && { children: requestData.children }) // 👈 ここがポイント
+            };
           delete newRequestData.propertiesString;
 
           // ✅ ヘッダーを Notion-Version 補完付きで再構築
