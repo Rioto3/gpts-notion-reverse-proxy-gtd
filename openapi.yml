@@ -3,10 +3,9 @@ info:
   title: Notion API
   version: v1.0.0
 servers:
-  - url: https://gpts-notion-reverse-proxy.riotamoriya.workers.dev/https://api.notion.com
+  - url: https://gpts-notion-reverse-proxy.rioto3.jp/https://api.notion.com
 paths:
   /v1/blocks/{block_id}/children:
-    
     get:
       x-openai-isConsequential: false
       description: Retrieve children of a block
@@ -61,7 +60,6 @@ paths:
         "500":
           description: Internal Server Error
   /v1/search:
-    
     post:
       x-openai-isConsequential: false
       description: Search across all pages and databases
@@ -124,7 +122,6 @@ paths:
         "500":
           description: Internal Server Error
   /v1/databases/{database_id}/query:
-    
     post:
       x-openai-isConsequential: false
       description: Query a database
@@ -187,7 +184,6 @@ paths:
         "500":
           description: Internal Server Error
   /v1/pages:
-    
     post:
       x-openai-isConsequential: false
       description: Create a new page with string properties
@@ -260,7 +256,6 @@ paths:
         "500":
           description: Internal Server Error
   /v1/pages/{page_id}:
-    
     patch:
       x-openai-isConsequential: false
       description: Update page properties
