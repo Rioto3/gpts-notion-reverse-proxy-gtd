@@ -10,7 +10,7 @@
 
 ## カスタマイズされたAPI仕様について
 このGPTが使用するNotion APIは標準のものと異なる点があります：
-- すべてのリクエスト処理はリバースプロキシを経由（`https://gpts-notion-reverse-proxy.riotamoriya.workers.dev/https://api.notion.com`）
+- すべてのリクエスト処理はリバースプロキシを経由
 - プロパティとブロック情報は単一のJSON文字列として送信（`propertiesAndChildrenString`パラメータ）
 - 標準的なNotionの形式とは異なる可能性があるため、正確なJSON構造に注意が必要
 
