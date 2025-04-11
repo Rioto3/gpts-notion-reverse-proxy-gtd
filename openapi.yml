@@ -7,21 +7,27 @@ servers:
 
 components:
   schemas:
-    CreatePageExample:
+    CreatePageParent:
+      type: object
+      properties:
+        type:
+          type: string
+          enum:
+            - database_id
+        database_id:
+          type: string
+      required:
+        - type
+        - database_id
+
+    CreatePageRequest:
       type: object
       required:
         - parent
         - propertiesAndChildrenString
       properties:
         parent:
-          type: object
-          properties:
-            type:
-              type: string
-              enum:
-                - database_id
-            database_id:
-              type: string
+          $ref: '#/components/schemas/CreatePageParent'
         propertiesAndChildrenString:
           type: string
           description: JSON文字列形式のプロパティと子要素
@@ -243,7 +249,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreatePageExample'
+              $ref: '#/components/schemas/CreatePageRequest'
             examples:
               default:
                 $ref: '#/components/examples/CreatePageExampleObject'
@@ -315,7 +321,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreatePageExample'
+              $ref: '#/components/schemas/CreatePageRequest'
             examples:
               default:
                 $ref: '#/components/examples/CreatePageExampleObject'
